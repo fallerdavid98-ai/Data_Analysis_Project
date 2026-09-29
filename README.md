@@ -4,9 +4,14 @@
 
 This project is part of my public [Data Analysis Project repository](https://github.com/fallerdavid98-ai/Data_Analysis_Project/tree/main) and analyzes the demand for technical skills in data-related job postings across the DACH region. For this analysis, the region includes **Germany, Austria, Switzerland, and Luxembourg**.
 
-The project uses the job-posting dataset provided through [Luke Barousse's Python course](https://lukebarousse.com/python). It begins with an exploratory overview of the DACH job market and then analyzes role-specific skill demand, monthly skill trends, salary distributions, and the relationship between skill prominence and median salary.
+The project began with the 2023 job-posting dataset provided through [Luke Barousse's Python course](https://lukebarousse.com/python) and has since been extended with a global data export containing records into 2026. It starts with an exploratory overview of the DACH job market and then analyzes role-specific skill demand, monthly skill trends, salary distributions, and the relationship between skill prominence and median salary.
 
-All five project notebooks are now included in the documented analytical workflow.
+To maintain comparability, **2023 remains the baseline year** and **January through November 2025 is used as the most recent DACH comparison period** for the EDA, skill-demand, skill-trend, and optimal-skill visualizations. The original 2023 charts are retained alongside the new 2025 results. Salary-distribution boxplots are the only exception: because individual recent periods contain too few reported annual salaries, the updated distribution pools all available DACH salary observations rather than being interpreted as a before-and-after comparison.
+
+> [!IMPORTANT]
+> **Different maximum dates:** The complete global export extends into 2026, but the DACH subset contains records only through **November 2025**. Consequently, the updated DACH charts contain no 2026 observations, and the 2025 comparison does not include December.
+
+All five project notebooks are included in the documented analytical workflow.
 
 ## Project Navigation
 
@@ -52,7 +57,7 @@ This project is designed to answer the following questions:
 
 ### Import and clean the dataset
 
-The dataset is loaded and converted into a Pandas DataFrame. Date values are converted to a datetime data type, while the serialized skill lists are converted into Python lists.
+The original 2023 analysis loads the course dataset through Hugging Face. The updated notebooks use a newer global CSV export containing records into 2026; after filtering to the DACH countries, the latest available observation is from November 2025. In both cases, date values are converted to a datetime data type and serialized skill lists are converted into Python lists.
 
 ```python
 import ast
@@ -70,6 +75,30 @@ df["job_skills"] = df["job_skills"].apply(
     lambda x: ast.literal_eval(x) if pd.notna(x) else x
 )
 ```
+
+The updated notebooks load the current export locally:
+
+```python
+df = pd.read_csv("Exporte/job_postings_flat.csv")
+
+df["job_posted_date"] = pd.to_datetime(df["job_posted_date"])
+df["job_skills"] = df["job_skills"].apply(
+    lambda x: ast.literal_eval(x) if pd.notna(x) else x
+)
+```
+
+> [!NOTE]
+> The `Exporte/` directory is excluded from version control. To rerun the updated notebooks, the current CSV export must be supplied locally and its path adjusted to the local project structure.
+
+### Select comparable periods
+
+The updated year-specific analyses select 2025 because the DACH subset contains no 2026 observations:
+
+```python
+df_2025 = df[df["job_posted_date"].dt.year == 2025]
+```
+
+The salary-distribution analysis deliberately omits this year filter and uses the complete available DACH period from 2023 through November 2025. The revised image filename and plot title now refer to `2023 to 2025`; more precisely, the effective DACH observation window ends in November 2025.
 
 ### Filter the DACH region
 
@@ -143,6 +172,18 @@ df_DACH_plot = (
 - **Remote or non-specific locations form a separate category:** `Anywhere` is one of the most frequent labels, but it should not be interpreted as a physical DACH location.
 - **The ranking mixes different geographical grains:** Cities, countries, and remote-location labels are compared in the same chart. It is therefore a useful overview of the raw location field, not a clean city-only market ranking.
 
+#### 2025 comparison
+
+![Number of Data Jobs in DACH Countries 2025](images/2025_Number_of_Data_Jobs_in_DACH_Countries.png)
+
+*The same location ranking calculated from the 2025 comparison year.*
+
+- **Berlin remains the leading city-level location:** It retains first place in both periods.
+- **Zürich gains prominence:** Zürich moves from behind Vienna and Munich in the 2023 baseline to second place in 2025, while Vienna moves down to sixth.
+- **Frankfurt labels are consolidated in 2025:** Entries containing `Frankfurt` are standardized as `Frankfurt a. M., Germany`, improving comparability within the updated year.
+- **The mixed-grain limitation remains:** Country labels and `Anywhere` still appear alongside cities.
+- **Absolute posting counts are much lower in the 2025 extract:** This may reflect changes in source coverage, collection volume, or the underlying market. The chart alone cannot attribute the difference to a market contraction.
+
 ### Work-from-home, degree, and health-insurance indicators
 
 Three Boolean fields provide an initial view of selected characteristics recorded for DACH postings:
@@ -167,6 +208,16 @@ for column in eda_columns:
 - **Explicit work-from-home offers are uncommon:** Only **4.1%** of postings are marked `True` for `job_work_from_home`. This reflects the dataset flag and may not capture every hybrid-working arrangement described in the original vacancy text.
 - **No degree is mentioned in a substantial minority of postings:** `job_no_degree_mention` is `True` for **41.7%** of the DACH subset. Because the column describes the absence of a degree mention, `True` must not be interpreted as a degree requirement.
 - **The health-insurance field is not informative for this regional analysis:** Every DACH observation is marked `False`. This should not be read as evidence that DACH employers provide no health coverage; the field is atypical for the European context and likely reflects the source schema rather than actual benefit availability.
+
+#### 2025 comparison
+
+![Remote Work Degree Requirement and Health Insurance Indicators 2025](images/2025_Remote_Work_Degree_Requirement_Health_Insurance_Plot.png)
+
+*The same three Boolean indicators calculated from the 2025 comparison year.*
+
+- **The explicit work-from-home share decreases slightly:** It moves from **4.1%** in 2023 to **3.3%** in 2025, a decline of **0.8 percentage points**.
+- **Postings without a degree mention become somewhat more common:** The `True` share for `job_no_degree_mention` rises from **41.7%** to **46.2%**, an increase of **4.5 percentage points**.
+- **Health insurance remains analytically uninformative:** The `True` share changes from **0.0%** to only **0.1%** and still should not be interpreted as actual DACH benefit coverage.
 
 ### Companies with the most postings
 
@@ -201,6 +252,18 @@ df_DACH_plot2 = (
 - **Deutsche Bahn is the leading employer in the dataset:** After consolidating its naming variants, it records the highest number of DACH postings by a clear margin.
 - **Turing ranks second:** Workwise GmbH, Michael Page, Hays, GITR, and ROCKEN form the next group of frequently represented companies.
 - **Company-name standardization affects the ranking:** `Bosch Group` and `Bosch Gruppe` still appear as separate labels. A broader entity-resolution step could combine further aliases and change individual positions in the employer ranking.
+
+#### 2025 comparison
+
+![Number of Data Jobs in DACH Countries by Company 2025](images/2025_Number_of_Data_Jobs_in_DACH_Countries_by_Company.png)
+
+*The 15 company labels with the most DACH data-job postings in 2025.*
+
+- **The composition changes substantially:** Deutsche Bahn, Turing, Workwise, Michael Page, and Hays no longer lead the ranking. `beBee Careers`, `Tideri Jobbörse`, and `TN Switzerland` occupy the top three positions in 2025.
+- **Recruiting and aggregation platforms become more visible:** Several leading 2025 labels appear to represent job boards, aggregators, or recruitment platforms rather than only direct employers. The change may therefore partly reflect how postings were collected and attributed.
+- **adesso SE and Lidl enter the leading group:** They are among the most frequently represented direct-employer labels in the updated year.
+- **Rocken remains present but moves down the ranking:** Its naming variants are consolidated in the 2025 preparation step.
+- **The comparison should not be interpreted as pure employer-market turnover:** Changes in data sources and company attribution can materially alter this chart even when the underlying labor market changes less dramatically.
 
 ## The Analysis
 
@@ -291,7 +354,7 @@ plt.show()
 
 ![Likelihood of Skills Requested in DACH Job Postings](images/Likelihood_of_Skills_Requested_in_DACH_Job_Postings.png)
 
-*Percentage of DACH job postings that mention each of the five most frequently requested skills for Data Analysts, Data Engineers, and Data Scientists.*
+*2023 baseline: percentage of DACH job postings that mention each of the five most frequently requested skills for Data Analysts, Data Engineers, and Data Scientists.*
 
 ### Insights
 
@@ -299,6 +362,18 @@ plt.show()
 - **Data Engineers:** Python and SQL dominate at **53%** and **50%**. Cloud and distributed-processing skills are also prominent: Azure appears in **31%**, AWS in **23%**, and Spark in **20%** of postings.
 - **Data Scientists:** Python is the clearest leading skill at **61%**. SQL follows at **34%**, while R remains important at **29%**. Azure and AWS appear less frequently, at **13%** and **11%**.
 - **Across roles:** Python and SQL are the only skills represented among the top five for all three roles, demonstrating their broad relevance across the DACH data job market.
+
+### 2025 comparison
+
+![Likelihood of Skills Requested in DACH Job Postings 2025](images/2025_Likelihood_of_Skills_Requested_in_DACH_Job_Postings.png)
+
+*2025 comparison: posting-level skill shares for the same three role groups.*
+
+- **Data Analysts:** SQL remains first but decreases from **42%** to **39%**, while Python is almost stable at **31%**. Power BI rises from **18%** to **25%** and becomes the third-ranked skill. Excel falls from **21%** to **16%**, while Tableau remains broadly stable at **18%**.
+- **Data Engineers:** Python strengthens from **53%** to **58%** and increases its lead over SQL, which remains nearly stable at **49%**. Azure and AWS also remain close to their 2023 levels. Databricks enters the top five at **18%**, replacing Spark.
+- **Data Scientists:** Python remains dominant but decreases from **61%** to **55%**. SQL changes only slightly, while R drops more clearly from **29%** to **21%**. TensorFlow enters the top five at **11%**, while AWS is no longer represented there.
+- **Cross-role continuity remains high:** Python and SQL are still the only skills appearing among the top five for all three roles.
+- **The largest visible structural shifts are role-specific:** Reporting demand becomes more Power-BI-oriented for analysts, Databricks gains visibility in engineering, and the Data Scientist top five shifts from AWS toward TensorFlow.
 
 ## 2. How are the leading skills trending across DACH data jobs?
 
@@ -321,7 +396,7 @@ df_DACH_pivot = df_DACH_expl.pivot_table(
 )
 ```
 
-The skills are ranked by their total number of mentions across the full year. The temporary `total` row is used only for sorting and is removed before calculating the monthly percentages. This ensures that the chart follows the same five leading skills throughout the year instead of changing the selection from month to month.
+The skills are ranked by their total number of mentions across the selected analysis period. The temporary `total` row is used only for sorting and is removed before calculating the monthly percentages. This ensures that the chart follows the same five leading skills throughout the displayed months instead of changing the selection from month to month.
 
 ```python
 df_DACH_pivot.loc["total"] = df_DACH_pivot.sum()
@@ -390,7 +465,7 @@ The workflow builds on the monthly aggregation techniques practiced in the [Tren
 
 ![Top 5 Job Skills for DACH Data Jobs by Month](images/Top_5_Job_Skills_for_DACH_Data_Jobs.png)
 
-*Monthly share of DACH job postings mentioning each of the five most frequently requested skills across the full year.*
+*2023 baseline: monthly share of DACH job postings mentioning each of the five most frequently requested skills.*
 
 ### Insights
 
@@ -400,6 +475,20 @@ The workflow builds on the monthly aggregation techniques practiced in the [Tren
 - **R fluctuates more strongly:** R reaches local highs of around **19%** in April and early summer, but its monthly share falls to approximately **13%** by December.
 - **AWS also declines toward year-end:** AWS generally stays in the mid-teen range during the first eight months and finishes the year at roughly **12%**.
 - **The annual leaders remain consistent:** Although their monthly prominence changes, Python, SQL, Azure, R, and AWS form the five most frequently mentioned skills across the complete DACH dataset for 2023.
+
+### 2025 comparison
+
+![Top 5 Job Skills for DACH Data Jobs by Month 2025](images/2025_Top_5_Job_Skills_for_DACH_Data_Jobs.png)
+
+*2025 comparison: normalized monthly skill shares for the five leading skills. The current notebook output contains January through November; no December point is displayed.*
+
+- **Python and SQL remain the clear leaders:** Both retain the top two positions throughout the available 2025 months, but fluctuate more strongly than in 2023.
+- **Python reaches its highest level in October:** Its share rises to almost **60%** before ending the displayed period at roughly **54%** in November.
+- **SQL recovers strongly after May:** It falls below **30%** in May, then rises to approximately **48%** by November.
+- **Azure shows the clearest upward movement:** After remaining near the mid-teens through August, it climbs sharply and approaches **30%** in November. This contrasts with the late-2023 decline visible in the baseline chart.
+- **Power BI replaces R in the annual top five:** Its monthly share is volatile and increases markedly in November, reinforcing the role-level shift already visible for Data Analysts.
+- **AWS spikes temporarily:** It reaches roughly **22%** in October before falling back in November.
+- **The time-window difference must remain visible:** The 2023 chart includes December, while the current 2025 chart stops in November. Year-end comparisons should therefore focus on the available common months or treat November as the endpoint for 2025.
 
 ## 3. How well do jobs and skills pay?
 
@@ -512,6 +601,37 @@ The following table supplements the boxplots with the underlying sample sizes an
 - **Some median lines appear to be missing:** They are still present but overlap a box boundary. The median equals the third quartile for Senior Data Scientists, Data Engineers, and Senior Data Engineers, while the Machine Learning Engineer median equals the first quartile.
 - **The ranking is not fully robust:** The displayed role-level sample sizes range only from **26 to 66** observations. The identical medians for Data Engineers and Senior Data Engineers should therefore not be interpreted as proof that both roles generally offer the same compensation across the DACH market.
 
+#### Updated salary coverage and pooled distribution
+
+The 2025 salary subset alone is too small for meaningful role-level boxplots. Even among its six most represented job titles, the available salary counts range only from one to five observations:
+
+![Salary Coverage Statistics for DACH Countries 2025](images/2025_Addition_to_Salary_Distribution_in_DACH_Countries.png)
+
+*2025 salary-coverage diagnostic. The small `count` values explain why a standalone 2025 boxplot would be unstable.*
+
+The updated notebook therefore pools every salary-reported DACH posting available in the current export:
+
+![Salary Distributions in DACH Countries for the Available Multi-Year Period](images/2023to2025_Salary_Distributions_in_DACH_Countries.png)
+
+*Pooled DACH salary distributions for the available period from 2023 through November 2025. The revised plot title summarizes this period as `2023 to 2025`.*
+
+The pooled boxplots are based on the following validated summary statistics:
+
+| Job title | Salary observations | Q1 | Median | Q3 |
+|---|---:|---:|---:|---:|
+| Senior Data Scientist | 31 | $91,350 | $157,500 | $157,500 |
+| Senior Data Engineer | 38 | $89,325 | $147,500 | $147,500 |
+| Data Engineer | 70 | $92,500 | $135,790 | $147,500 |
+| Data Scientist | 93 | $70,000 | $106,500 | $157,500 |
+| Data Analyst | 87 | $58,800 | $89,100 | $111,175 |
+| Machine Learning Engineer | 65 | $86,400 | $89,100 | $166,000 |
+
+- **Pooling improves the observation base:** The displayed role groups now contain between **31 and 93** salary observations instead of relying on the extremely small 2025-only groups.
+- **Senior roles remain at the top of the pooled ranking:** Senior Data Scientists have the highest median at **$157,500**, followed by Senior Data Engineers at **$147,500**.
+- **Data Analysts and Machine Learning Engineers share the lowest pooled median:** Both are at **$89,100**, although the Machine Learning Engineer distribution is much wider.
+- **The pooled chart is not a temporal comparison:** Because it combines several years, differences from the original 2023 plot cannot be attributed to salary growth or decline. The purpose is to obtain a more stable distribution from the limited salary data.
+- **Outliers remain visible:** Data Engineer and Data Analyst postings include individual high-salary observations beyond the upper whiskers.
+
 ### 3.2 Median salary of top-paying and frequently requested skills
 
 #### Method
@@ -593,7 +713,7 @@ plt.show()
 
 ![Median Salary versus Skill Demand for Data Jobs in DACH](images/Median_Salary_vs_Skill_Demand_for_Data_Jobs_in_DACH.png)
 
-*Comparison between the skills with the highest observed median salaries and the most frequently mentioned skills within the DACH salary subset.*
+*2023 baseline: comparison between the skills with the highest observed median salaries and the most frequently mentioned skills within the DACH salary subset.*
 
 #### Insights
 
@@ -683,7 +803,7 @@ The visualization builds on the techniques practiced in the [Scatterplots exerci
 
 ![Salary versus Prominence of Job Postings for Top Skills](images/Salary_vs_Prominence_of_Job_Postings_for_Top_Skills.png)
 
-*Median annual salary versus the share of salary-reported DACH job postings mentioning each skill. Only skills reaching the 8% prominence threshold are displayed.*
+*2023 baseline: median annual salary versus the share of salary-reported DACH job postings mentioning each skill. Only skills reaching the 8% prominence threshold are displayed.*
 
 ### Insights
 
@@ -695,6 +815,35 @@ The visualization builds on the techniques practiced in the [Scatterplots exerci
 - **“Optimal” is a two-dimensional interpretation:** The notebook does not calculate a single composite score. Skills are evaluated visually by their position on the prominence and median-salary axes, so the preferred skill depends on whether breadth of demand or compensation receives more weight.
 - **The findings remain directional:** Salary disclosure is limited, and role seniority, country, employer, and combinations with other skills can influence the observed medians. The chart supports prioritization hypotheses rather than causal conclusions about the salary effect of learning an individual skill.
 
+### 2025 comparison
+
+The updated notebook applies the same calculation to the January–November 2025 DACH subset:
+
+```python
+df_2025 = df[df["job_posted_date"].dt.year == 2025]
+
+df_DACH = (
+    df_2025[df_2025["job_country"].isin(DACH_countries)]
+    .dropna(subset=["salary_year_avg"])
+    .copy()
+)
+```
+
+![Salary versus Prominence of Job Postings for Top Skills 2025](images/2025_Salary_vs_Prominence_of_Job_Postings_for_Top_Skills.png)
+
+*January–November 2025 comparison using the same 8% prominence threshold within the salary-reported DACH subset.*
+
+> [!CAUTION]
+> **Very small 2025 salary sample:** The 2025 role-level diagnostic contains only one to five salary observations per leading job title. In such a small salary subset, an 8% skill threshold can be reached with only a few postings. The unusually high medians for individual skills should therefore be treated as unstable sample results, not as market salary benchmarks.
+
+- **Python and SQL remain the most prominent skills:** Python appears in about **50%** and SQL in approximately **44%** of salary-reported postings. Their associated medians are roughly **$84,000** and **$80,000**, substantially below their positions in the 2023 chart.
+- **AWS gains prominence but has a lower observed median:** Its share rises from roughly **20%** to **25%**, while the associated median moves from about **$147,500** in the baseline to approximately **$115,000** in 2025.
+- **PostgreSQL occupies the highest point in the 2025 chart:** It appears in roughly **19%** of the salary subset with a median near **$248,000**. Given the small underlying sample, this should be treated as an outlier-sensitive result.
+- **Java, Go, and Snowflake form a high-salary, lower-prominence group:** Their observed medians range from approximately **$150,000** to **$205,000**, but each appears in only around **12%** of the salary subset.
+- **The technology mix changes:** Spark, Azure, and Kubernetes are no longer present above the threshold, while PostgreSQL, Java, Go, Snowflake, Power BI, and Airflow enter the displayed set.
+- **Tableau becomes more prominent but has a lower associated median:** Its share increases to roughly **19%**, while the median is approximately **$72,000**.
+- **The two years should be compared directionally:** Differences can reflect the very small 2025 salary sample, changing role composition, employer mix, or salary-reporting patterns—not only changes in the market value of individual skills.
+
 ## What I Learned So Far
 
 - **Choosing the correct denominator matters:** Skill demand should be calculated against the number of original job postings, not against the number of rows produced by `explode()`.
@@ -703,13 +852,16 @@ The visualization builds on the techniques practiced in the [Scatterplots exerci
 - **Regional filtering changes the analytical context:** Findings for the DACH region should not be copied from a U.S.-focused analysis without recalculation.
 - **Clear chart annotations improve readability:** Direct percentage labels make the comparison of skill demand easier across roles.
 - **Monthly counts need normalization:** Dividing monthly skill mentions by the number of postings in the same month makes periods with different posting volumes comparable.
-- **A fixed skill selection improves trend comparisons:** Selecting the five leading skills by their annual totals keeps the plotted categories consistent across all twelve months.
+- **A fixed skill selection improves trend comparisons:** Selecting the five leading skills by their totals for the respective analysis period keeps the plotted categories consistent across every available month. The 2023 baseline covers twelve months, whereas the 2025 DACH comparison covers January through November.
 - **Boxplots and numerical summaries complement each other:** The table of counts and quartiles makes sample size limitations visible and explains why some median lines overlap the box boundaries.
 - **Salary rankings need observation thresholds:** A high median based on only a few postings is less reliable than a similar median supported by many salary observations.
 - **Missing salary values change the analytical population:** Salary-based role and skill rankings describe only the subset of postings that disclose annual compensation.
+- **Dataset coverage must be checked after filtering:** Although the complete global export extends into 2026, the DACH subset ends in November 2025. The maximum date of the source file is therefore not automatically the maximum date of every regional analysis.
+- **Comparable periods require explicit definitions:** The new year-specific charts use January through November 2025, while the 2023 baseline contains the full calendar year. December-to-December comparisons are not possible with the current DACH data.
+- **Pooling can improve stability but changes the question:** Combining all available DACH salary observations produces more informative boxplots, but it describes the pooled 2023–November 2025 sample rather than a change between individual years.
 - **Raw dimensions require semantic checks:** The EDA location field mixes cities, countries, and remote labels, while Boolean columns such as `job_no_degree_mention` must be interpreted according to their exact definitions.
 - **Entity resolution changes aggregated results:** Consolidating employer aliases prevents one organization from being split across several company labels.
-- **An “optimal” skill depends on the objective:** Python and SQL maximize broad applicability, whereas Spark and AWS provide the strongest salary-prominence balance within the analyzed salary subset.
+- **An “optimal” skill depends on the objective and sample:** Python and SQL maximize broad applicability in both comparison periods. Spark and AWS provide the strongest salary-prominence balance in the 2023 baseline, while the apparent 2025 leaders are too dependent on a very small salary sample to support the same level of confidence.
 
 ## Challenges
 
@@ -718,8 +870,11 @@ The visualization builds on the techniques practiced in the [Scatterplots exerci
 - Keeping the same visual scale across subplots while preserving readable labels.
 - Separating supported conclusions from contextual fields that are not directly comparable or are poorly suited to the DACH region.
 - Distinguishing changes in raw posting volume from changes in the percentage of postings that request a particular skill.
+- Distinguishing the global export's maximum date from the effective date coverage of the filtered DACH subset.
+- Comparing a complete 2023 calendar year with a 2025 DACH period that ends in November and contains no December observations.
 - Placing direct labels at the end of the trend lines without reducing readability or confusing closely positioned series.
 - Interpreting salary distributions from relatively small samples without overstating differences between roles.
+- Using a pooled 2023–November 2025 salary distribution to improve sample size without presenting it as a direct before-and-after comparison.
 - Comparing specialized and frequently requested skills when their salary medians can be based on very different numbers of observations.
 - Keeping the distinction clear between overall skill demand and skill frequency within the smaller salary-reported subset.
 - Comparing city, country, and remote location labels that coexist in the same source column.
@@ -728,14 +883,12 @@ The visualization builds on the techniques practiced in the [Scatterplots exerci
 
 ## Conclusion
 
-The exploratory analysis shows that Berlin and Vienna are the leading city-level location labels and that Deutsche Bahn is the most frequently represented employer after its naming variants are consolidated. It also demonstrates the importance of reading source fields carefully: the location ranking mixes geographical levels, and the health-insurance indicator is not suitable for drawing conclusions about actual benefit coverage in the DACH region.
+The exploratory comparison shows both continuity and change between the 2023 baseline and January–November 2025. Berlin remains the leading city-level location, while Zürich becomes more prominent in the updated period. The company ranking changes much more strongly: Deutsche Bahn leads the 2023 data, whereas job boards and recruitment platforms such as beBee Careers, Tideri Jobbörse, and TN Switzerland occupy the leading positions in 2025. Because source coverage and company attribution can affect these rankings, this shift should not be interpreted solely as employer-market turnover. The explicit work-from-home share decreases slightly, while postings without a degree mention become somewhat more common.
 
-The skill-demand analyses show that Python and SQL are central across the selected DACH data roles, while role-specific patterns remain visible: analyst roles place greater emphasis on reporting and visualization tools, engineering roles on cloud and distributed-processing technologies, and data-science roles on Python and R.
+Python and SQL remain the most consistently requested skills across roles and periods. The updated role-level results also reveal more specific shifts: Power BI gains importance for Data Analysts, Databricks enters the Data Engineer top five, and TensorFlow replaces AWS among the five leading Data Scientist skills. The monthly 2025 trends are more volatile than the 2023 baseline, with a particularly strong late-period rise for Azure. However, the updated DACH trend ends in November and therefore contains no December observation.
 
-The monthly trend analysis confirms that Python and SQL remain the leading skills throughout 2023, even though their share of monthly postings declines during the second half of the year. Azure is comparatively stable before a fourth-quarter decrease, while R and AWS show more fluctuation and finish the year below their earlier levels.
+The salary findings require the strongest caution. A standalone 2025 salary analysis is based on too few observations for stable role-level distributions. The updated boxplot therefore pools all available DACH salary observations from 2023 through November 2025. It provides a broader descriptive salary distribution, but it is not evidence of salary growth or decline between 2023 and 2025. The identical or similar role medians and the high observed salaries of some individual skills can be strongly influenced by sparse reporting, repeated salary values, role composition, and outliers.
 
-The salary analysis shows substantial differences between the observed role medians and highlights AWS and Spark as comparatively well-paid among the frequently mentioned skills. At the same time, limited salary coverage and small group sizes reduce the reliability of individual rankings. The identical median salaries observed for Data Engineers and Senior Data Engineers illustrate why these findings should be treated as directional rather than definitive market benchmarks.
+The salary-versus-prominence analysis identifies Spark and AWS as the strongest visible balance in the 2023 baseline, while Python and SQL remain the broadest foundational choices in both periods. The 2025 chart places PostgreSQL, Java, Go, and Snowflake relatively high on the salary axis, but the underlying salary subset is so small that these positions should be treated as exploratory signals rather than market benchmarks.
 
-The final salary-versus-prominence analysis identifies Spark and AWS as the strongest visible balance of the two dimensions within the salary subset. Python and SQL remain the broadest foundational choices, while Git offers a comparatively high median with lower prominence. These outcomes are not universal skill rankings: they depend on the selected 8% threshold, the limited availability of salary information, and the relative importance assigned to prominence versus compensation.
-
-Together, the five notebooks provide a complete exploratory workflow for the DACH data-job dataset—from market orientation and demand patterns to salary distributions and skill prioritization—while keeping the principal data-quality and sample-size limitations explicit.
+Finally, the temporal scope must remain explicit: the complete global export contains records into 2026, but the filtered DACH data ends in **November 2025**. Consequently, none of the updated DACH findings describe 2026, the 2025 comparison is not a complete calendar year, and the pooled salary analysis effectively covers 2023 through November 2025. Within those limitations, the five notebooks provide a reproducible workflow from market orientation and demand trends to salary distributions and skill prioritization while keeping the main data-quality risks visible.
