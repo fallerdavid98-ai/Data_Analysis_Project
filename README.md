@@ -4,9 +4,9 @@
 
 This project is part of my public [Data Analysis Project repository](https://github.com/fallerdavid98-ai/Data_Analysis_Project/tree/main) and analyzes the demand for technical skills in data-related job postings across the DACH region. For this analysis, the region includes **Germany, Austria, Switzerland, and Luxembourg**.
 
-The project uses the job-posting dataset provided through [Luke Barousse's Python course](https://lukebarousse.com/python). The completed analyses currently cover the skills requested for three major data roles—**Data Analyst, Data Engineer, and Data Scientist**—and the monthly development of the five most frequently mentioned skills across DACH data jobs.
+The project uses the job-posting dataset provided through [Luke Barousse's Python course](https://lukebarousse.com/python). The completed analyses currently cover the skills requested for three major data roles—**Data Analyst, Data Engineer, and Data Scientist**—the monthly development of the five most frequently mentioned skills, and annual salary patterns across DACH data jobs.
 
-Further analyses of salaries and optimal skills are planned and are explicitly marked as **Work in Progress (WIP)** below.
+The final analysis of optimal skills is still planned and is explicitly marked as **Work in Progress (WIP)** below.
 
 ## Project Navigation
 
@@ -16,6 +16,7 @@ Further analyses of salaries and optimal skills are planned and are explicitly m
 - [Exploratory Data Analysis notebook](3_Project/1_EDA_Intro.ipynb)
 - [DACH Skill Demand notebook](3_Project/2_Skill_Demand.ipynb)
 - [DACH Skill Trends notebook](3_Project/3_Skills_Trend.ipynb)
+- [DACH Salary Analysis notebook](3_Project/4_Salary_Analysis.ipynb)
 
 ## Project Status
 
@@ -23,7 +24,7 @@ Further analyses of salaries and optimal skills are planned and are explicitly m
 |---|---|
 | 1. Which skills are most in demand for the selected data roles? | ✅ Completed |
 | 2. How are the leading skills trending across DACH data jobs? | ✅ Completed |
-| 3. How well do data roles and skills pay? | 🚧 WIP |
+| 3. How well do data roles and skills pay? | ✅ Completed |
 | 4. Which skills offer the best combination of demand and salary? | 🚧 WIP |
 
 ## The Questions
@@ -309,22 +310,211 @@ The workflow builds on the monthly aggregation techniques practiced in the [Tren
 
 ## 3. How well do jobs and skills pay?
 
-> [!IMPORTANT]
-> **Work in Progress:** The DACH salary analysis is still open. No salary results from the U.S. reference project are transferred to this regional analysis.
+View the complete analysis and executable code in the [DACH Salary Analysis notebook](3_Project/4_Salary_Analysis.ipynb).
 
-Planned work:
+The salary analysis consists of two parts. The first compares the salary distributions of the six most frequently represented DACH data roles in the salary subset. The second contrasts the skills with the highest median salaries against the skills mentioned most frequently in salary-reported postings.
 
-- Examine salary availability and missing values in the DACH subset.
-- Compare annual salary distributions across common data roles.
-- Calculate median salaries associated with individual skills.
-- Distinguish robust results from observations based on small samples.
+> [!CAUTION]
+> **Limited salary coverage:** Both parts use only postings that contain a value for `salary_year_avg`. Salary information is available for a comparatively small number of DACH postings, so the results should be interpreted as descriptive findings for the available sample rather than precise estimates for the entire DACH job market.
 
-Methodological starting point: [Histograms and Boxplots exercise notebook](2_Advanced/13_Exercise_Histograms_Boxplots.ipynb).
+### 3.1 Salary distributions of the six leading data roles
+
+#### Method
+
+The DACH dataset is filtered to postings with a reported annual salary. The six most frequent job titles are then selected from this reduced subset and ordered by median salary.
+
+```python
+DACH_countries = ["Germany", "Austria", "Switzerland", "Luxembourg"]
+
+df_DACH = (
+    df[df["job_country"].isin(DACH_countries)]
+    .dropna(subset=["salary_year_avg"])
+    .copy()
+)
+
+job_titles = (
+    df_DACH["job_title_short"]
+    .value_counts()
+    .index[:6]
+    .unique()
+    .tolist()
+)
+
+df_DACH_top6 = df_DACH[
+    df_DACH["job_title_short"].isin(job_titles)
+]
+
+jobs_orderedby_median = (
+    df_DACH_top6
+    .groupby("job_title_short")["salary_year_avg"]
+    .median()
+    .sort_values(ascending=False)
+    .index
+    .to_list()
+)
+```
+
+Because the six roles are selected only after missing salaries have been removed, “leading” refers to the most frequent roles **among postings with salary information**, not necessarily the six most frequent roles in the complete DACH dataset.
+
+For each boxplot, the number of observations, first quartile, median, and third quartile are calculated as an additional numerical summary.
+
+```python
+salary_statistics = (
+    df_DACH_top6
+    .groupby("job_title_short")["salary_year_avg"]
+    .agg(
+        count="count",
+        q1=lambda x: x.quantile(0.25),
+        median="median",
+        q3=lambda x: x.quantile(0.75)
+    )
+)
+
+salary_statistics.sort_values("median", ascending=False)
+```
+
+The salary distributions are displayed as horizontal boxplots and ordered from the highest to the lowest median.
+
+```python
+sns.boxplot(
+    data=df_DACH_top6,
+    x="salary_year_avg",
+    y="job_title_short",
+    order=jobs_orderedby_median
+)
+
+sns.set_theme(style="ticks")
+
+plt.title("Salary Distributions in DACH Countries (in Order of Median Salary)")
+plt.xlabel("Yearly Salary (USD)")
+plt.ylabel("")
+plt.xlim(0, 250_000)
+plt.gca().xaxis.set_major_formatter(
+    plt.FuncFormatter(lambda x, _: f"${int(x / 1000)}K")
+)
+
+plt.show()
+```
+
+The boxplots build on the distribution techniques practiced in the [Histograms and Boxplots exercise notebook](2_Advanced/13_Exercise_Histograms_Boxplots.ipynb).
+
+#### Results
+
+![Salary Distributions in DACH Countries](images/Salary_Distributions_in_DACH_Countries.png)
+
+*Annual salary distributions for the six most frequent job titles among DACH postings with reported salary information, ordered by median salary.*
+
+The following table supplements the boxplots with the underlying sample sizes and quartile values:
+
+![Salary Distribution Statistics for DACH Countries](images/Addition_to_Salary_Distribution_in_DACH_Countries.png)
+
+*Count of salary observations, first quartile, median, and third quartile for each displayed job title.*
+
+#### Insights
+
+- **Senior Data Scientists show the highest sample median:** Their median annual salary is **$157,500**, based on **26** salary observations.
+- **Data Engineers and Senior Data Engineers share the same median:** Both groups have a median salary of **$147,500**, despite representing different seniority levels. This may partly reflect the limited sample size, repeated salary values, or differences in which employers disclose salaries.
+- **Data Scientists occupy the middle of the ranking:** Their median is **$120,814**, based on **66** observations.
+- **Data Analysts and Machine Learning Engineers have the lowest medians in this sample:** Their respective medians are **$90,550** and **$89,100**. The Machine Learning Engineer distribution is especially broad, with the median equal to the first quartile and the third quartile reaching **$166,000**.
+- **Some median lines appear to be missing:** They are still present but overlap a box boundary. The median equals the third quartile for Senior Data Scientists, Data Engineers, and Senior Data Engineers, while the Machine Learning Engineer median equals the first quartile.
+- **The ranking is not fully robust:** The displayed role-level sample sizes range only from **26 to 66** observations. The identical medians for Data Engineers and Senior Data Engineers should therefore not be interpreted as proof that both roles generally offer the same compensation across the DACH market.
+
+### 3.2 Median salary of top-paying and frequently requested skills
+
+#### Method
+
+The skill lists from salary-reported postings are expanded into individual rows. Two separate rankings are then created:
+
+1. the ten skills with the highest median salary;
+2. the ten most frequently mentioned skills, reordered by their median salary for the visualization.
+
+```python
+df_DACH_expl = df_DACH.explode(column="job_skills").copy()
+
+df_DACH_skillsbymedian = (
+    df_DACH_expl
+    .groupby("job_skills")["salary_year_avg"]
+    .agg(["count", "median"])
+    .sort_values(by="median", ascending=False)
+    .head(10)
+)
+
+df_DACH_skillsbyprom = (
+    df_DACH_expl
+    .groupby("job_skills")["salary_year_avg"]
+    .agg(["count", "median"])
+    .sort_values(by="count", ascending=False)
+    .head(10)
+    .sort_values(by="median", ascending=False)
+)
+```
+
+The `count` value in this section represents skill mentions only within postings that report an annual salary. The calculation therefore does not measure total skill demand across every DACH posting.
+
+Both rankings are plotted on the same salary scale to make their median values directly comparable.
+
+```python
+fig, ax = plt.subplots(2, 1)
+sns.set_theme(style="ticks")
+
+sns.barplot(
+    data=df_DACH_skillsbymedian,
+    x="median",
+    y=df_DACH_skillsbymedian.index,
+    hue="median",
+    ax=ax[0],
+    palette="dark:b_r"
+)
+
+ax[0].legend().remove()
+ax[0].set_title("Top 10 Best Paid Skills for Data Jobs in DACH")
+ax[0].set_xlabel("")
+ax[0].set_ylabel("")
+ax[0].set_xlim(0, 250_000)
+
+sns.barplot(
+    data=df_DACH_skillsbyprom,
+    x="median",
+    y=df_DACH_skillsbyprom.index,
+    hue="median",
+    ax=ax[1],
+    palette="dark:b_r"
+)
+
+ax[1].legend().remove()
+ax[1].set_title("Top 10 Most In-Demand Skills for Data Jobs in DACH")
+ax[1].set_xlabel("Median Salary (USD)")
+ax[1].set_ylabel("")
+ax[1].set_xlim(0, 250_000)
+
+for axis in ax:
+    axis.xaxis.set_major_formatter(
+        plt.FuncFormatter(lambda x, _: f"${int(x / 1000)}K")
+    )
+
+fig.tight_layout()
+plt.show()
+```
+
+#### Results
+
+![Median Salary versus Skill Demand for Data Jobs in DACH](images/Median_Salary_vs_Skill_Demand_for_Data_Jobs_in_DACH.png)
+
+*Comparison between the skills with the highest observed median salaries and the most frequently mentioned skills within the DACH salary subset.*
+
+#### Insights
+
+- **Rust has the highest observed median salary:** It stands clearly above the other skills in the salary-ranked group, while FastAPI follows in second place.
+- **Several specialized skills share similarly high medians:** Firebase, Kotlin, Keras, NLTK, Perl, NoSQL, Vue, and TensorFlow cluster around a median salary of approximately **$157,500**.
+- **AWS and Spark lead among the frequently mentioned skills:** Both combine comparatively high medians with strong representation in the salary subset. Git follows, while Python, SQL, and Azure form a middle group with similar median salaries.
+- **Frequently requested skills produce the more market-relevant comparison:** Their larger number of mentions generally makes them more informative than niche skills that appear at the top of the salary ranking on the basis of very few observations.
+- **The highest-paying-skill ranking is particularly sensitive to small samples:** No minimum `count` threshold is applied before selecting the ten highest medians. A skill can therefore enter the ranking because of only a small number of salary-reported postings.
+- **These results are descriptive, not causal:** The analysis does not show that learning a particular skill causes a higher salary. Seniority, job title, employer, country, and the limited availability of salary information may all influence the observed medians.
 
 ## 4. Which skills offer the best combination of demand and salary?
 
 > [!IMPORTANT]
-> **Work in Progress:** This analysis depends on the completion and validation of the DACH salary analysis.
+> **Work in Progress:** The completed salary analysis has not yet been combined with overall skill-demand percentages in a reliability-adjusted optimal-skill ranking.
 
 Planned work:
 
@@ -344,6 +534,9 @@ Methodological starting point: [Scatterplots exercise notebook](2_Advanced/12_Ex
 - **Clear chart annotations improve readability:** Direct percentage labels make the comparison of skill demand easier across roles.
 - **Monthly counts need normalization:** Dividing monthly skill mentions by the number of postings in the same month makes periods with different posting volumes comparable.
 - **A fixed skill selection improves trend comparisons:** Selecting the five leading skills by their annual totals keeps the plotted categories consistent across all twelve months.
+- **Boxplots and numerical summaries complement each other:** The table of counts and quartiles makes sample size limitations visible and explains why some median lines overlap the box boundaries.
+- **Salary rankings need observation thresholds:** A high median based on only a few postings is less reliable than a similar median supported by many salary observations.
+- **Missing salary values change the analytical population:** Salary-based role and skill rankings describe only the subset of postings that disclose annual compensation.
 
 ## Challenges
 
@@ -353,6 +546,9 @@ Methodological starting point: [Scatterplots exercise notebook](2_Advanced/12_Ex
 - Separating completed findings from planned analyses so that WIP sections do not imply unsupported conclusions.
 - Distinguishing changes in raw posting volume from changes in the percentage of postings that request a particular skill.
 - Placing direct labels at the end of the trend lines without reducing readability or confusing closely positioned series.
+- Interpreting salary distributions from relatively small samples without overstating differences between roles.
+- Comparing specialized and frequently requested skills when their salary medians can be based on very different numbers of observations.
+- Keeping the distinction clear between overall skill demand and skill frequency within the smaller salary-reported subset.
 
 ## Conclusion
 
@@ -360,4 +556,6 @@ The completed analyses show that Python and SQL are central across the selected 
 
 The monthly trend analysis confirms that Python and SQL remain the leading skills throughout 2023, even though their share of monthly postings declines during the second half of the year. Azure is comparatively stable before a fourth-quarter decrease, while R and AWS show more fluctuation and finish the year below their earlier levels.
 
-The project remains in progress. Salary and optimal-skill analyses will be added only after their DACH-specific calculations and visualizations have been completed and validated.
+The salary analysis shows substantial differences between the observed role medians and highlights AWS and Spark as comparatively well-paid among the frequently mentioned skills. At the same time, limited salary coverage and small group sizes reduce the reliability of individual rankings. The identical median salaries observed for Data Engineers and Senior Data Engineers illustrate why these findings should be treated as directional rather than definitive market benchmarks.
+
+The project remains in progress. The final optimal-skill analysis will combine validated demand and salary information while applying an observation threshold to reduce distortions from small samples.
