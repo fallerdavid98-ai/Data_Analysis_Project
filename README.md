@@ -4,9 +4,9 @@
 
 This project is part of my public [Data Analysis Project repository](https://github.com/fallerdavid98-ai/Data_Analysis_Project/tree/main) and analyzes the demand for technical skills in data-related job postings across the DACH region. For this analysis, the region includes **Germany, Austria, Switzerland, and Luxembourg**.
 
-The project uses the job-posting dataset provided through [Luke Barousse's Python course](https://lukebarousse.com/python). The completed analyses currently cover the skills requested for three major data roles—**Data Analyst, Data Engineer, and Data Scientist**—the monthly development of the five most frequently mentioned skills, and annual salary patterns across DACH data jobs.
+The project uses the job-posting dataset provided through [Luke Barousse's Python course](https://lukebarousse.com/python). It begins with an exploratory overview of the DACH job market and then analyzes role-specific skill demand, monthly skill trends, salary distributions, and the relationship between skill prominence and median salary.
 
-The final analysis of optimal skills is still planned and is explicitly marked as **Work in Progress (WIP)** below.
+All five project notebooks are now included in the documented analytical workflow.
 
 ## Project Navigation
 
@@ -17,15 +17,17 @@ The final analysis of optimal skills is still planned and is explicitly marked a
 - [DACH Skill Demand notebook](3_Project/2_Skill_Demand.ipynb)
 - [DACH Skill Trends notebook](3_Project/3_Skills_Trend.ipynb)
 - [DACH Salary Analysis notebook](3_Project/4_Salary_Analysis.ipynb)
+- [DACH Optimal Skills notebook](3_Project/5_Optimal_Skills.ipynb)
 
 ## Project Status
 
 | Analysis question | Status |
 |---|---|
+| 0. What does the DACH data-job landscape look like? | ✅ Completed |
 | 1. Which skills are most in demand for the selected data roles? | ✅ Completed |
 | 2. How are the leading skills trending across DACH data jobs? | ✅ Completed |
 | 3. How well do data roles and skills pay? | ✅ Completed |
-| 4. Which skills offer the best combination of demand and salary? | 🚧 WIP |
+| 4. Which skills offer the best combination of prominence and salary? | ✅ Completed |
 
 ## The Questions
 
@@ -34,7 +36,7 @@ This project is designed to answer the following questions:
 1. Which skills are most in demand for Data Analysts, Data Engineers, and Data Scientists in the DACH region?
 2. How are the leading skills trending across DACH data jobs?
 3. How well do data jobs and individual skills pay in the DACH region?
-4. Which skills are optimal to learn when balancing demand and salary?
+4. Which skills offer the strongest balance between prominence and median salary?
 
 ## Tools Used
 
@@ -108,6 +110,97 @@ Related learning notebooks used to build these preparation steps:
 - [Pandas Data Cleaning](2_Advanced/2_Pandas_Data_cleaning.ipynb)
 - [Pandas Data Management](2_Advanced/3_Pandas_Data_Management.ipynb)
 - [Pandas Merge DataFrames](2_Advanced/7_Pandas_Merge_DataFrames.ipynb)
+
+## Exploratory Data Analysis
+
+View the complete introductory analysis and executable code in the [DACH Exploratory Data Analysis notebook](3_Project/1_EDA_Intro.ipynb).
+
+The exploratory step establishes the regional context before the project moves into skill and salary analysis. It examines where DACH data jobs are advertised, which employment-related attributes are recorded, and which companies appear most frequently in the dataset.
+
+### Leading job-location labels
+
+The postings are grouped by `job_location`, counted, and sorted to identify the 15 most frequent location labels.
+
+```python
+df_DACH_plot = (
+    df_DACH
+    .groupby("job_location")
+    .size()
+    .sort_values(ascending=False)
+    .head(15)
+    .to_frame(name="count")
+)
+```
+
+![Number of Data Jobs in DACH Countries](images/Number_of_Data_Jobs_in_DACH_Countries.png)
+
+*The 15 most frequently recorded location labels for DACH data-job postings.*
+
+#### Insights
+
+- **Berlin and Vienna lead the ranking:** Berlin records the highest number of postings, followed by Vienna. Munich and Zürich are also among the strongest city-level locations.
+- **Austria appears both as a country and through individual cities:** Country-level labels such as `Austria`, `Germany`, and `Switzerland` coexist with city-level entries.
+- **Remote or non-specific locations form a separate category:** `Anywhere` is one of the most frequent labels, but it should not be interpreted as a physical DACH location.
+- **The ranking mixes different geographical grains:** Cities, countries, and remote-location labels are compared in the same chart. It is therefore a useful overview of the raw location field, not a clean city-only market ranking.
+
+### Work-from-home, degree, and health-insurance indicators
+
+Three Boolean fields provide an initial view of selected characteristics recorded for DACH postings:
+
+```python
+eda_columns = [
+    "job_work_from_home",
+    "job_no_degree_mention",
+    "job_health_insurance"
+]
+
+for column in eda_columns:
+    print(df_DACH[column].value_counts(normalize=True) * 100)
+```
+
+![Remote Work Degree Requirement and Health Insurance Indicators](images/Remote_Work_Degree_Requirement_Health_Insurance_Plot.png)
+
+*Shares of the Boolean work-from-home, no-degree-mention, and health-insurance fields in the DACH subset.*
+
+#### Insights
+
+- **Explicit work-from-home offers are uncommon:** Only **4.1%** of postings are marked `True` for `job_work_from_home`. This reflects the dataset flag and may not capture every hybrid-working arrangement described in the original vacancy text.
+- **No degree is mentioned in a substantial minority of postings:** `job_no_degree_mention` is `True` for **41.7%** of the DACH subset. Because the column describes the absence of a degree mention, `True` must not be interpreted as a degree requirement.
+- **The health-insurance field is not informative for this regional analysis:** Every DACH observation is marked `False`. This should not be read as evidence that DACH employers provide no health coverage; the field is atypical for the European context and likely reflects the source schema rather than actual benefit availability.
+
+### Companies with the most postings
+
+Before counting employers, different Deutsche-Bahn labels are consolidated into one company name. The 15 companies with the most DACH postings are then selected.
+
+```python
+df_DACH.loc[
+    df_DACH["company_name"].str.contains(
+        "Deutsche Bahn",
+        na=False,
+        regex=False
+    ),
+    "company_name"
+] = "Deutsche Bahn"
+
+df_DACH_plot2 = (
+    df_DACH
+    .groupby("company_name")
+    .size()
+    .sort_values(ascending=False)
+    .head(15)
+    .to_frame(name="count")
+)
+```
+
+![Number of Data Jobs in DACH Countries by Company](images/Number_of_Data_Jobs_in_DACH_Countries_by_Company.png)
+
+*The 15 company labels with the most data-job postings in the DACH subset.*
+
+#### Insights
+
+- **Deutsche Bahn is the leading employer in the dataset:** After consolidating its naming variants, it records the highest number of DACH postings by a clear margin.
+- **Turing ranks second:** Workwise GmbH, Michael Page, Hays, GITR, and ROCKEN form the next group of frequently represented companies.
+- **Company-name standardization affects the ranking:** `Bosch Group` and `Bosch Gruppe` still appear as separate labels. A broader entity-resolution step could combine further aliases and change individual positions in the employer ranking.
 
 ## The Analysis
 
@@ -511,19 +604,96 @@ plt.show()
 - **The highest-paying-skill ranking is particularly sensitive to small samples:** No minimum `count` threshold is applied before selecting the ten highest medians. A skill can therefore enter the ranking because of only a small number of salary-reported postings.
 - **These results are descriptive, not causal:** The analysis does not show that learning a particular skill causes a higher salary. Seniority, job title, employer, country, and the limited availability of salary information may all influence the observed medians.
 
-## 4. Which skills offer the best combination of demand and salary?
+## 4. Which skills offer the best combination of prominence and salary?
 
-> [!IMPORTANT]
-> **Work in Progress:** The completed salary analysis has not yet been combined with overall skill-demand percentages in a reliability-adjusted optimal-skill ranking.
+View the complete analysis and executable code in the [DACH Optimal Skills notebook](3_Project/5_Optimal_Skills.ipynb).
 
-Planned work:
+### Method
 
-- Combine skill-demand percentages with median salary estimates.
-- Apply a minimum observation threshold to reduce small-sample distortion.
-- Compare skills by demand, compensation, and technology category.
-- Visualize the results in a demand-versus-salary scatter plot.
+The final analysis combines two measures for every skill found in DACH postings with a reported annual salary:
 
-Methodological starting point: [Scatterplots exercise notebook](2_Advanced/12_Exercise_Scatterplots.ipynb).
+- `skill_perc`: the percentage of salary-reported postings that mention the skill;
+- `median_salary`: the median annual salary associated with those postings.
+
+```python
+df_DACH = (
+    df[df["job_country"].isin(DACH_countries)]
+    .dropna(subset=["salary_year_avg"])
+    .copy()
+)
+
+df_DACH_expl = df_DACH.explode(column="job_skills")
+
+df_DACH_skillset = (
+    df_DACH_expl
+    .groupby("job_skills")
+    .agg(
+        skill_count=("job_skills", "count"),
+        median_salary=("salary_year_avg", "median")
+    )
+    .sort_values(by="skill_count", ascending=False)
+)
+
+total_job_count = len(df_DACH)
+
+df_DACH_skillset["skill_perc"] = (
+    df_DACH_skillset["skill_count"]
+    / total_job_count
+) * 100
+```
+
+Only skills mentioned in at least **8%** of the salary-reported DACH postings are retained. This removes very rare skills from the comparison and reduces the small-sample distortion observed in the unrestricted salary ranking.
+
+```python
+skill_prom = 8
+
+df_DACH_skills_filtered = df_DACH_skillset[
+    df_DACH_skillset["skill_perc"] >= skill_prom
+]
+```
+
+The remaining skills are assigned to technology categories—such as programming, libraries, cloud, analyst tools, and other—using the dataset's `job_type_skills` dictionaries. The resulting DataFrame is visualized as a scatter plot.
+
+```python
+sns.scatterplot(
+    data=df_DACH_techmerge,
+    x="skill_perc",
+    y="median_salary",
+    hue="technology"
+)
+
+plt.xlabel("Prominence of Job Postings")
+plt.ylabel("Median Yearly Salary")
+plt.title("Salary vs. Prominence of Job Postings for Top Skills")
+
+ax.yaxis.set_major_formatter(
+    plt.FuncFormatter(lambda x, _: f"${int(x / 1000)}K")
+)
+ax.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}%"))
+
+plt.show()
+```
+
+The visualization builds on the techniques practiced in the [Scatterplots exercise notebook](2_Advanced/12_Exercise_Scatterplots.ipynb).
+
+> [!CAUTION]
+> **Salary-subset limitation:** Both prominence and median salary are calculated only from DACH postings containing `salary_year_avg`. The 8% threshold improves comparability within that subset but does not make it representative of all DACH job postings.
+
+### Results
+
+![Salary versus Prominence of Job Postings for Top Skills](images/Salary_vs_Prominence_of_Job_Postings_for_Top_Skills.png)
+
+*Median annual salary versus the share of salary-reported DACH job postings mentioning each skill. Only skills reaching the 8% prominence threshold are displayed.*
+
+### Insights
+
+- **Spark and AWS offer the strongest visible balance:** Both are associated with median salaries of roughly **$147,500** while appearing in approximately **24%** and **20%** of the salary-reported postings respectively. They occupy the most attractive upper-right area of the chart.
+- **Python and SQL provide the broadest applicability:** Python appears in more than **50%** of the salary subset and SQL in approximately **39%**. Their median salaries are lower than those of Spark and AWS, at roughly **$111,000**, but their much greater prominence makes them foundational skills.
+- **Git combines a relatively high salary with lower prominence:** Its median is approximately **$131,000**, but it appears in only around **9%** of the salary-reported postings.
+- **Azure and Tableau occupy the middle of the comparison:** Azure reaches about **12%** prominence with a median near **$111,000**, while Tableau is close to **11%** with a median around **$105,000**.
+- **Kubernetes has the lowest observed median among the displayed skills:** It passes the prominence threshold but is associated with a median salary of approximately **$89,000** in this subset.
+- **“Optimal” is a two-dimensional interpretation:** The notebook does not calculate a single composite score. Skills are evaluated visually by their position on the prominence and median-salary axes, so the preferred skill depends on whether breadth of demand or compensation receives more weight.
+- **The findings remain directional:** Salary disclosure is limited, and role seniority, country, employer, and combinations with other skills can influence the observed medians. The chart supports prioritization hypotheses rather than causal conclusions about the salary effect of learning an individual skill.
 
 ## What I Learned So Far
 
@@ -537,25 +707,35 @@ Methodological starting point: [Scatterplots exercise notebook](2_Advanced/12_Ex
 - **Boxplots and numerical summaries complement each other:** The table of counts and quartiles makes sample size limitations visible and explains why some median lines overlap the box boundaries.
 - **Salary rankings need observation thresholds:** A high median based on only a few postings is less reliable than a similar median supported by many salary observations.
 - **Missing salary values change the analytical population:** Salary-based role and skill rankings describe only the subset of postings that disclose annual compensation.
+- **Raw dimensions require semantic checks:** The EDA location field mixes cities, countries, and remote labels, while Boolean columns such as `job_no_degree_mention` must be interpreted according to their exact definitions.
+- **Entity resolution changes aggregated results:** Consolidating employer aliases prevents one organization from being split across several company labels.
+- **An “optimal” skill depends on the objective:** Python and SQL maximize broad applicability, whereas Spark and AWS provide the strongest salary-prominence balance within the analyzed salary subset.
 
 ## Challenges
 
 - Ensuring that the percentage denominator represents job postings rather than exploded skill rows.
 - Handling postings with missing skill information without treating missing values as actual skills.
 - Keeping the same visual scale across subplots while preserving readable labels.
-- Separating completed findings from planned analyses so that WIP sections do not imply unsupported conclusions.
+- Separating supported conclusions from contextual fields that are not directly comparable or are poorly suited to the DACH region.
 - Distinguishing changes in raw posting volume from changes in the percentage of postings that request a particular skill.
 - Placing direct labels at the end of the trend lines without reducing readability or confusing closely positioned series.
 - Interpreting salary distributions from relatively small samples without overstating differences between roles.
 - Comparing specialized and frequently requested skills when their salary medians can be based on very different numbers of observations.
 - Keeping the distinction clear between overall skill demand and skill frequency within the smaller salary-reported subset.
+- Comparing city, country, and remote location labels that coexist in the same source column.
+- Interpreting employment-related Boolean flags without reversing their meaning or overstating what an uninformative field can show.
+- Balancing prominence and compensation without implying that one skill independently causes a higher salary.
 
 ## Conclusion
 
-The completed analyses show that Python and SQL are central across the selected DACH data roles, while role-specific patterns remain visible: analyst roles place greater emphasis on reporting and visualization tools, engineering roles on cloud and distributed-processing technologies, and data-science roles on Python and R.
+The exploratory analysis shows that Berlin and Vienna are the leading city-level location labels and that Deutsche Bahn is the most frequently represented employer after its naming variants are consolidated. It also demonstrates the importance of reading source fields carefully: the location ranking mixes geographical levels, and the health-insurance indicator is not suitable for drawing conclusions about actual benefit coverage in the DACH region.
+
+The skill-demand analyses show that Python and SQL are central across the selected DACH data roles, while role-specific patterns remain visible: analyst roles place greater emphasis on reporting and visualization tools, engineering roles on cloud and distributed-processing technologies, and data-science roles on Python and R.
 
 The monthly trend analysis confirms that Python and SQL remain the leading skills throughout 2023, even though their share of monthly postings declines during the second half of the year. Azure is comparatively stable before a fourth-quarter decrease, while R and AWS show more fluctuation and finish the year below their earlier levels.
 
 The salary analysis shows substantial differences between the observed role medians and highlights AWS and Spark as comparatively well-paid among the frequently mentioned skills. At the same time, limited salary coverage and small group sizes reduce the reliability of individual rankings. The identical median salaries observed for Data Engineers and Senior Data Engineers illustrate why these findings should be treated as directional rather than definitive market benchmarks.
 
-The project remains in progress. The final optimal-skill analysis will combine validated demand and salary information while applying an observation threshold to reduce distortions from small samples.
+The final salary-versus-prominence analysis identifies Spark and AWS as the strongest visible balance of the two dimensions within the salary subset. Python and SQL remain the broadest foundational choices, while Git offers a comparatively high median with lower prominence. These outcomes are not universal skill rankings: they depend on the selected 8% threshold, the limited availability of salary information, and the relative importance assigned to prominence versus compensation.
+
+Together, the five notebooks provide a complete exploratory workflow for the DACH data-job dataset—from market orientation and demand patterns to salary distributions and skill prioritization—while keeping the principal data-quality and sample-size limitations explicit.
